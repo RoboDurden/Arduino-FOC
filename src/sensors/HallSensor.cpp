@@ -67,6 +67,35 @@ void HallSensor::updateState() {
   }
   electric_sector = new_electric_sector;
 
+  //qq
+  bNoUpdate = false;
+  iHallPosLatest = electric_rotations * 6 + electric_sector;
+  iPosUpdateState = (iPosUpdateState + 1 ) % HISTORY_updateState;
+  aiTimeDiff[iPosUpdateState] = new_pulse_timestamp - pulse_timestamp;
+  float fPulseDiff = aiTimeDiff[iPosUpdateState];
+  int iSum = 1;
+  for(int i=1; i<HISTORY_updateState; i++)
+  {
+    int iDiff = aiTimeDiff[(i+iPosUpdateState)%HISTORY_updateState];
+    if (  (fPulseDiff + iDiff) > 50000) //  average up to 50 ms for getVelocity()
+      break;
+    fPulseDiff += iDiff; 
+    iSum++;
+  }
+  fPulseDiffVelocity = fPulseDiff / iSum;
+
+  fPulseDiff = aiTimeDiff[iPosUpdateState];
+  iSum = 1;
+  for(int i=1; i<HISTORY_updateState; i++)
+  {
+    int iDiff = aiTimeDiff[(i+iPosUpdateState)%HISTORY_updateState];
+    if (  (fPulseDiff + iDiff) > 10000) // not over 10 ms for predicting the next getMechanicalAngle()
+      break;
+    fPulseDiff += iDiff; 
+    iSum++;
+  }
+  fPulseDiffPredict = fPulseDiff / iSum;
+
   // glitch avoidance #2 changes in direction can cause velocity spikes.  Possible improvements needed in this area
   if (direction == old_direction) {
     // not oscilating or just changed direction
@@ -104,8 +133,41 @@ float HallSensor::getSensorAngle() {
 	Shaft angle calculation
   TODO: numerical precision issue here if the electrical rotation overflows the angle will be lost
 */
-float HallSensor::getMechanicalAngle() {
-  return ((float)((electric_rotations * 6 + electric_sector) % cpr) / (float)cpr) * _2PI ;
+float HallSensor::getMechanicalAngle() 
+{
+  //return ((float)((electric_rotations * 6 + electric_sector) % cpr) / (float)cpr) * _2PI ;
+  float fAngleOrg = ((float)((electric_rotations * 6 + electric_sector) % cpr) / (float)cpr) * _2PI ;
+  //return fAngleOrg;
+
+  //qq
+  bNoUpdate = true;   // thread safety
+  //int iAngleDelta0 = direction; //  aiAngle[0]-aiAngle[1];   // is either +1 or -1 (hall step)
+  if ( (aiTimeDiff[iPosUpdateState] > 5000) || (direction * iDirectionOld < 0 )  ) // too slow or direction change
+    return fAngleOrg;
+
+  iDirectionOld = direction; 
+  unsigned int iMicrosPredict = _micros() - pulse_timestamp;  //aiTime[0];
+  float fHallPosPredict;  // the predicted Angle in [hall steps]
+
+  float fGradient1 = direction / fPulseDiffPredict;
+  
+  float fHallPosLin = fGradient1 * (fLinAdd * iMicrosPredict);   // 1 = linear interpolation
+  if (  abs(fHallPosLin) >= 1.2 * fLinAdd  )                     // a >=1 angle step would have triggered a hall event !
+    fHallPosLin = 1.2 * fLinAdd * direction;                // direction is either +1 or -1
+  fHallPosPredict = iHallPosLatest + fHallPosLin;
+  
+  float fAngleLin = (fmod(fHallPosPredict,cpr) / (float)cpr) * _2PI ;   // convert hall steps to [0..2pi]
+
+  iPosGetMAngle = (iPosGetMAngle + 1) % HISTORY_GetMAngle;
+  afAngle[iPosGetMAngle] = fAngleOrg;
+  afAngleLin[iPosGetMAngle] = fAngleLin; 
+  aiMicrosPredict[iPosGetMAngle] = iMicrosPredict;
+  abNoUpdate[iPosGetMAngle] = bNoUpdate;
+
+  if (bNoUpdate)  // only use it if UpdateState() has not partially overwritten some parameters in the meantime
+    return fAngleLin;
+
+  return fAngleOrg;
 }
 
 /*

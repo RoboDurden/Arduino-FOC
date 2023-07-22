@@ -79,6 +79,25 @@ class HallSensor: public Sensor{
     // variable used to filter outliers - rad/s
     float velocity_max = 1000.0f;
 
+    //qq
+    volatile bool bNoUpdate = true; // to make code thread safe
+    #define HISTORY_updateState 4
+    byte iPosUpdateState = 0;
+    unsigned int aiTimeDiff[HISTORY_updateState];  // volatile 
+    long iHallPosLatest;
+    float fPulseDiffVelocity;
+    float fPulseDiffPredict;
+    float getRpm(){return   direction * (60000000.0f / fPulseDiffVelocity) / (cpr); };
+    Direction iDirectionOld;   // +1 or -1
+    #define HISTORY_GetMAngle 8
+    byte iPosGetMAngle = 0;
+    float afAngle[HISTORY_GetMAngle];  // volatile 
+    float afAngleLin[HISTORY_GetMAngle];  // volatile 
+    unsigned int aiMicrosPredict[HISTORY_GetMAngle];  // volatile 
+    bool abNoUpdate[HISTORY_GetMAngle];
+    float fLinAdd = 0.0;
+
+
   private:
     
     Direction decodeDirection(int oldState, int newState);
