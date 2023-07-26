@@ -11,61 +11,51 @@
 
 class LowsideCurrentSenseTimer: public LowsideCurrentSense
 {
-  public:
-    /**
-      LowsideCurrentSenseTimer class constructor
-      @param shunt_resistor shunt resistor value
-      @param gain current-sense op-amp gain
-      @param phA A phase adc pin
-      @param phB B phase adc pin
-      @param phC C phase adc pin (optional)
-    */
-    LowsideCurrentSenseTimer(float shunt_resistor, float gain, int pinA, int pinB, int pinC = _NC);
+public:
+  LowsideCurrentSenseTimer(float shunt_resistor, float gain, int pinA, int pinB, int pinC = _NC);
 
-    void (*callback)(void);
-
-    void AddCallback(void (*cb)() = nullptr);
+  void (*callback)(void);
+  void AddCallback(void (*cb)() = nullptr);
 
 
-    static std::vector<BLDCMotor*> apMotor; 
-
-
-    //void linkMotor(BLDCMotor* _pMotor) {pMotor = _pMotor;}
-    void linkMotor(BLDCMotor* _pMotor);
-
-
-    int init() override;
-    int init(uint32_t _instanceTimer, unsigned long iH = TIMER_HZ_default);
-
-    void AddAdc(int pin, float fConvert, unsigned int iOffsetCount = 0);
-    void  AddCurrentSensor(LowsideCurrentSenseTimer& oCurrentSensor);
-    float ReadAdcVoltage(const int pin);
-    // function reading an ADC value and returning the read voltage
-    float _readADCVoltageLowSide(const int pin, const void* cs_params)
-    {
-      return ((LowsideCurrentSenseTimer*) cs_params)->ReadAdcVoltage(pin);
-    }
-
-    float ReadAdc(const int pin);
-
+  static std::vector<BLDCMotor*> apMotor; 
 	static long iMicrosTimerCb;
 	static long iMicrosAdcReady;
 	static unsigned long iCount;
 	static unsigned long iTimerHz;
 
-  private:
+  static int iAdcCount;
+  static uint16_t* ai_AdcBuffer;
+  static uint16_t ai_AdcBuffer0;
+  static uint16_t ai_AdcBuffer1;
+  static uint16_t ai_AdcBuffer2;
+  static uint16_t ai_AdcBuffer3;
 
-	HardwareTimer* pTimer;
 
+  int init() override;
+  int init(uint32_t _instanceTimer, unsigned long iH = TIMER_HZ_default);
 
-	static void timer_cb();
+  void linkMotor(BLDCMotor* _pMotor);
+  void AddAdc(int pin, float fConvert, unsigned int iOffsetCount = 0);
+  void AddCurrentSensor(LowsideCurrentSenseTimer& oCurrentSensor);
+  
+  float ReadAdcVoltage(const int pin);
+  uint16_t ReadAanalog(const int pin);
+  float ReadAdc(const int pin);
+  uint16_t ReadBufferPos(const int iPos);
 
+  // function reading an ADC value and returning the read voltage
+  float _readADCVoltageLowSide(const int pin, const void* cs_params)
+  {
+    return ((LowsideCurrentSenseTimer*) cs_params)->ReadAdcVoltage(pin);
+  }
 
-  dma_parameter_struct dma_init_struct_adc;
-
-  uint8_t iAdc;
+private:
 
   LowsideCurrentSenseTimer* pMaster;
+	HardwareTimer* pTimer;
+  // DMA (ADC) structs
+  dma_parameter_struct dma_init_struct_adc;
 
   typedef struct
   {
@@ -83,15 +73,11 @@ class LowsideCurrentSenseTimer: public LowsideCurrentSense
   } add_cs_t;
   std::vector<add_cs_t> ao_AddCS; 
 
-
-  static uint16_t* ai_AdcBuffer;
-
+  std::vector<int> aiPin; 
   uint8_t aiAdcMap[DIGITAL_PINS_NUM];
-  int iAdcCount;
-  
-void _InitPin(const int pin);
 
-
+	static void timer_cb();
+  void _AddPin(const int pin);
   void _RCU_init(void);
   void _DMA_init(void);
   void _ADC_init(void);
