@@ -1,4 +1,5 @@
 #include "LowsideCurrentSenseTimer.h"
+#include "./communication/SimpleFOCDebug.h"
 
 // to see the interrupthandler getting called:
 #define LED_GREEN PA15
@@ -8,6 +9,7 @@
 // definition of static element variables:
 
 uint16_t* LowsideCurrentSenseTimer::ai_AdcBuffer;
+ uint16_t LowsideCurrentSenseTimer::ai_AdcBufferLog[8];
 
 uint16_t LowsideCurrentSenseTimer::ai_AdcBuffer0;	// for StmStudio..
 uint16_t LowsideCurrentSenseTimer::ai_AdcBuffer1;
@@ -19,6 +21,8 @@ long LowsideCurrentSenseTimer::iMicrosTimerCb;
 long LowsideCurrentSenseTimer::iMicrosAdcReady;
 unsigned long LowsideCurrentSenseTimer::iCount;
 unsigned long LowsideCurrentSenseTimer::iTimerHz;
+uint32_t LowsideCurrentSenseTimer::iCountTimer0;
+
 std::vector<BLDCMotor*> LowsideCurrentSenseTimer::apMotor;
 
 
@@ -35,6 +39,9 @@ extern "C"		// c-style callback interrupt handler :-/
 				LowsideCurrentSenseTimer::apMotor[i]->loopFOC();
 
 //qq	copy to uint16 for StmStudio to import
+		for (int i=LowsideCurrentSenseTimer::iAdcCount-1; i>=0; i--)
+			LowsideCurrentSenseTimer::ai_AdcBufferLog[i] = LowsideCurrentSenseTimer::ai_AdcBuffer[i];
+
 		LowsideCurrentSenseTimer::ai_AdcBuffer0 = LowsideCurrentSenseTimer::ai_AdcBuffer[0];
 		LowsideCurrentSenseTimer::ai_AdcBuffer1 = LowsideCurrentSenseTimer::ai_AdcBuffer[1];
 		LowsideCurrentSenseTimer::ai_AdcBuffer2 = LowsideCurrentSenseTimer::ai_AdcBuffer[2];
@@ -184,10 +191,43 @@ int LowsideCurrentSenseTimer::init(uint32_t instanceTimer, unsigned long iHz)
 		delete pTimer;
 	}	
 
+
+	// Brushless Control DC (BLDC) defines
+	// Channel G
+	#define BLDC_GH_PIN PA10
+	#define BLDC_GL_PIN PB15
+	// Channel B
+	#define BLDC_BH_PIN PA9
+	#define BLDC_BL_PIN PB14
+	// Channel Y
+	#define BLDC_YH_PIN PA8
+	#define BLDC_YL_PIN PB13
+
+/*
+	pwmDevice_t oPwmDevice = getTimerDeviceFromPinname(DIGITAL_TO_PINNAME(BLDC_GH_PIN));	// -> 2 = TIMER_CH_2
+	SIMPLEFOC_DEBUG("Timer_CH ", oPwmDevice.channel);
+	oPwmDevice = getTimerDeviceFromPinname(DIGITAL_TO_PINNAME(BLDC_GL_PIN));	// -> 1 = TIMER_CH_1
+	SIMPLEFOC_DEBUG("Timer_CH ", oPwmDevice.channel);
+	oPwmDevice = getTimerDeviceFromPinname(DIGITAL_TO_PINNAME(BLDC_BH_PIN));	// -> 1 = TIMER_CH_1
+	SIMPLEFOC_DEBUG("Timer_CH ", oPwmDevice.channel);
+	oPwmDevice = getTimerDeviceFromPinname(DIGITAL_TO_PINNAME(BLDC_BL_PIN));	// -> 0 = TIMER_CH_0
+	SIMPLEFOC_DEBUG("Timer_CH ", oPwmDevice.channel);
+	oPwmDevice = getTimerDeviceFromPinname(DIGITAL_TO_PINNAME(BLDC_YH_PIN));	// -> 0 = TIMER_CH_0
+	SIMPLEFOC_DEBUG("Timer_CH ", oPwmDevice.channel);
+	oPwmDevice = getTimerDeviceFromPinname(DIGITAL_TO_PINNAME(BLDC_YL_PIN));	// -> 0 = TIMER_CH_0
+	SIMPLEFOC_DEBUG("Timer_CH ", oPwmDevice.channel);
+	*/
+
+/*
 	pTimer = new HardwareTimer(instanceTimer);
     pTimer->setPeriodTime(iTimerHz, FORMAT_HZ);
     pTimer->attachInterrupt(&timer_cb);
     pTimer->start();
+
+	pTimer = new HardwareTimer(instanceTimer);
+	pTimer->attachInterrupt(&timer_cb);
+
+*/
 
 	//delay(1);
 
@@ -198,11 +238,57 @@ int LowsideCurrentSenseTimer::init(uint32_t instanceTimer, unsigned long iHz)
     return 1;
 }
 
+extern "C"
+{
+	#define TIMER_BLDC TIMER0
+	void TIMER0_BRK_UP_TRG_COM_IRQHandler(void)
+	{
+		LowsideCurrentSenseTimer::iCountTimer0 = timer_counter_read(TIMER0);
+
+		if (SET == timer_interrupt_flag_get(TIMER_BLDC,TIMER_INT_FLAG_UP))
+		{
+			//digitalWrite(LED_RED, digitalRead(LED_RED) ^ 1);
+			LowsideCurrentSenseTimer::iCount++;
+			digitalWrite(LED_ORANGE, (LowsideCurrentSenseTimer::iCount % LowsideCurrentSenseTimer::iTimerHz) < (LowsideCurrentSenseTimer::iTimerHz/4) );
+
+			// Start ADC conversion
+			adc_software_trigger_enable(ADC_REGULAR_CHANNEL);
+			LowsideCurrentSenseTimer::iMicrosTimerCb = getCurrentMicros();
+
+
+			timer_interrupt_flag_clear(TIMER_BLDC,TIMER_INT_FLAG_UP);
+		}
+	}
+	/*
+*/
+	void TIMER0_BRK_UP_TRG_COM_IRQnHandler(void)
+	{
+		if (SET == timer_interrupt_flag_get(TIMER_BLDC,TIMER_INT_FLAG_UP))
+		{
+			//digitalWrite(LED_RED, digitalRead(LED_RED) ^ 1);
+			LowsideCurrentSenseTimer::iCount++;
+			digitalWrite(LED_ORANGE, (LowsideCurrentSenseTimer::iCount % LowsideCurrentSenseTimer::iTimerHz) < (LowsideCurrentSenseTimer::iTimerHz/4) );
+
+			// Start ADC conversion
+			adc_software_trigger_enable(ADC_REGULAR_CHANNEL);
+			LowsideCurrentSenseTimer::iMicrosTimerCb = getCurrentMicros();
+
+
+			timer_interrupt_flag_clear(TIMER_BLDC,TIMER_INT_FLAG_UP);
+		}
+	}
+
+}
+
+
 void LowsideCurrentSenseTimer::timer_cb() 
 {
+	LowsideCurrentSenseTimer::iCountTimer0 = timer_counter_read(TIMER0);
+
     //digitalWrite(LED_RED, digitalRead(LED_RED) ^ 1);
 	LowsideCurrentSenseTimer::iCount++;
-    digitalWrite(LED_ORANGE, (LowsideCurrentSenseTimer::iCount % LowsideCurrentSenseTimer::iTimerHz) < (LowsideCurrentSenseTimer::iTimerHz/4) );
+
+	digitalWrite(LED_ORANGE, (LowsideCurrentSenseTimer::iCount % LowsideCurrentSenseTimer::iTimerHz) < (LowsideCurrentSenseTimer::iTimerHz/4) );
 
 	// Start ADC conversion
 	adc_software_trigger_enable(ADC_REGULAR_CHANNEL);

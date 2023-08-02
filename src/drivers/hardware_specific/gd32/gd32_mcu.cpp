@@ -106,7 +106,7 @@ void* _configure6PWM(long pwm_frequency, float dead_zone, const int pinA_h, cons
   timerBldc_break_parameter_struct.protectmode	    = TIMER_CCHP_PROT_OFF;
   timerBldc_break_parameter_struct.deadtime 	      = DEAD_TIME; // 0~255
   timerBldc_break_parameter_struct.outputautostate 	= TIMER_OUTAUTO_DISABLE;
-  
+
   #ifdef TIMER_BLDC_EMERGENCY_SHUTDOWN_PIN
     timerBldc_break_parameter_struct.breakstate	      = TIMER_BREAK_ENABLE;
     timerBldc_break_parameter_struct.breakpolarity	  = TIMER_BREAK_POLARITY_LOW;
@@ -117,6 +117,12 @@ void* _configure6PWM(long pwm_frequency, float dead_zone, const int pinA_h, cons
 
   /* TIMER0 primary output function enable */
   timer_primary_output_config(TIMER_BLDC, ENABLE);
+
+
+	// Enable TIMER_INT_UP interrupt and set priority
+	nvic_irq_enable(TIMER0_BRK_UP_TRG_COM_IRQn, 0, 0);
+	timer_interrupt_enable(TIMER_BLDC, TIMER_INT_UP);
+
 
   // Enable the timer and start PWM
   timer_enable(TIMER_BLDC);
@@ -132,6 +138,7 @@ void* _configure6PWM(long pwm_frequency, float dead_zone, const int pinA_h, cons
 
   return params; // success
 }
+
 
 // setting pwm to hardware pin - instead analogWrite()
 void _setPwm(uint32_t timer_periph, uint16_t channel, uint32_t value, int resolution)

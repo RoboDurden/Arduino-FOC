@@ -24,12 +24,17 @@ public:
 	static unsigned long iCount;
 	static unsigned long iTimerHz;
 
+  static uint32_t iCountTimer0;
+  
   static int iAdcCount;
   static uint16_t* ai_AdcBuffer;
+  static uint16_t ai_AdcBufferLog[8];
+
   static uint16_t ai_AdcBuffer0;
   static uint16_t ai_AdcBuffer1;
   static uint16_t ai_AdcBuffer2;
   static uint16_t ai_AdcBuffer3;
+
 
 
   int init() override;
@@ -64,7 +69,7 @@ private:
     unsigned int iOffsetCount;
   } add_adc_t;
   std::vector<add_adc_t> ao_AddAdc; 
-
+  
   typedef struct
   {
     int pinA;
