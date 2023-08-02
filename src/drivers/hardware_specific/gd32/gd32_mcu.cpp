@@ -120,7 +120,7 @@ void* _configure6PWM(long pwm_frequency, float dead_zone, const int pinA_h, cons
 
 
 	// Enable TIMER_INT_UP interrupt and set priority
-	nvic_irq_enable(TIMER0_BRK_UP_TRG_COM_IRQn, 0, 0);
+	nvic_irq_enable(TIMER0_BRK_UP_TRG_COM_IRQn, 4, 0);
 	timer_interrupt_enable(TIMER_BLDC, TIMER_INT_UP);
 
 

@@ -22,6 +22,8 @@ long LowsideCurrentSenseTimer::iMicrosAdcReady;
 unsigned long LowsideCurrentSenseTimer::iCount;
 unsigned long LowsideCurrentSenseTimer::iTimerHz;
 uint32_t LowsideCurrentSenseTimer::iCountTimer0;
+uint32_t LowsideCurrentSenseTimer::aiMillis[10];
+int LowsideCurrentSenseTimer::iPosMillis = 0;
 
 std::vector<BLDCMotor*> LowsideCurrentSenseTimer::apMotor;
 
@@ -32,7 +34,7 @@ extern "C"		// c-style callback interrupt handler :-/
 	// Is called, when the ADC scan sequence is finished
 	void DMA_Channel0_IRQHandler(void)
 	{
-		LowsideCurrentSenseTimer::iMicrosAdcReady = getCurrentMicros() - LowsideCurrentSenseTimer::iMicrosTimerCb;
+//		LowsideCurrentSenseTimer::iMicrosAdcReady = getCurrentMicros() - LowsideCurrentSenseTimer::iMicrosTimerCb;
 
 		for (int i=LowsideCurrentSenseTimer::apMotor.size()-1; i>=0; i--)	
 			if (LowsideCurrentSenseTimer::apMotor[i]->enabled)
@@ -241,26 +243,35 @@ int LowsideCurrentSenseTimer::init(uint32_t instanceTimer, unsigned long iHz)
 extern "C"
 {
 	#define TIMER_BLDC TIMER0
+	// disable C:\Users\PAN CF-LX6\.platformio\packages\framework-arduinogd32\cores\arduino\gd32\timer.c::TIMER0_BRK_UP_TRG_COM_IRQHandler(void)
 	void TIMER0_BRK_UP_TRG_COM_IRQHandler(void)
 	{
-		LowsideCurrentSenseTimer::iCountTimer0 = timer_counter_read(TIMER0);
-
 		if (SET == timer_interrupt_flag_get(TIMER_BLDC,TIMER_INT_FLAG_UP))
 		{
+				uint32_t iCounter = timer_counter_read(TIMER0);
+			if (LowsideCurrentSenseTimer::iPosMillis >= 0)	// thread safety
+			{
+				uint32_t iNow = getCurrentMicros();
+				LowsideCurrentSenseTimer::iMicrosAdcReady = iNow - LowsideCurrentSenseTimer::iMicrosTimerCb;
+					LowsideCurrentSenseTimer::iMicrosTimerCb = iNow;
+				LowsideCurrentSenseTimer::aiMillis[LowsideCurrentSenseTimer::iPosMillis] = iCounter;
+				LowsideCurrentSenseTimer::iPosMillis = (LowsideCurrentSenseTimer::iPosMillis +1) % 10;
+				//LowsideCurrentSenseTimer::iCountTimer0 = timer_counter_read(TIMER0);
+				//LowsideCurrentSenseTimer::iCountTimer0 = timer_channel_capture_value_register_read(TIMER0,TIMER_CH_3);
+			}
+
 			//digitalWrite(LED_RED, digitalRead(LED_RED) ^ 1);
 			LowsideCurrentSenseTimer::iCount++;
 			digitalWrite(LED_ORANGE, (LowsideCurrentSenseTimer::iCount % LowsideCurrentSenseTimer::iTimerHz) < (LowsideCurrentSenseTimer::iTimerHz/4) );
 
-			// Start ADC conversion
-			adc_software_trigger_enable(ADC_REGULAR_CHANNEL);
-			LowsideCurrentSenseTimer::iMicrosTimerCb = getCurrentMicros();
-
+			// Start ADC conversion only once in a peridod
+			if (iCounter < 500)
+				adc_software_trigger_enable(ADC_REGULAR_CHANNEL);
 
 			timer_interrupt_flag_clear(TIMER_BLDC,TIMER_INT_FLAG_UP);
 		}
 	}
-	/*
-*/
+/*
 	void TIMER0_BRK_UP_TRG_COM_IRQnHandler(void)
 	{
 		if (SET == timer_interrupt_flag_get(TIMER_BLDC,TIMER_INT_FLAG_UP))
@@ -277,10 +288,11 @@ extern "C"
 			timer_interrupt_flag_clear(TIMER_BLDC,TIMER_INT_FLAG_UP);
 		}
 	}
+*/
 
 }
 
-
+/*
 void LowsideCurrentSenseTimer::timer_cb() 
 {
 	LowsideCurrentSenseTimer::iCountTimer0 = timer_counter_read(TIMER0);
@@ -294,7 +306,7 @@ void LowsideCurrentSenseTimer::timer_cb()
 	adc_software_trigger_enable(ADC_REGULAR_CHANNEL);
 	LowsideCurrentSenseTimer::iMicrosTimerCb = getCurrentMicros();
 }
-
+*/
 void LowsideCurrentSenseTimer::_RCU_init(void)
 {
 	// enable GPIOA clock

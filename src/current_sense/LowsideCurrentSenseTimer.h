@@ -25,7 +25,10 @@ public:
 	static unsigned long iTimerHz;
 
   static uint32_t iCountTimer0;
-  
+  static uint32_t aiMillis[10];
+  static int iPosMillis;
+
+
   static int iAdcCount;
   static uint16_t* ai_AdcBuffer;
   static uint16_t ai_AdcBufferLog[8];
