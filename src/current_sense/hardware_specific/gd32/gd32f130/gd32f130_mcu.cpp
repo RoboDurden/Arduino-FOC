@@ -77,13 +77,6 @@ void* _configureADCLowSide(const void* driver_params, const int pinA, const int 
   nvic_irq_enable(ADC_CMP_IRQn, 0, 0);
   #endif
 
-/*
-  // robo
-  adc_interrupt_flag_clear(ADC_INT_EOIC);
-  adc_interrupt_enable(ADC_INT_EOIC);
-  nvic_irq_enable(ADC_CMP_IRQn, 3, 3);
-// */
-
 	// Enable ADC (must be before calibration)
 	adc_enable();
   
@@ -94,62 +87,6 @@ void* _configureADCLowSide(const void* driver_params, const int pinA, const int 
 
   return cs_params;
 }
-
-/*
-
-// robo
-#define LED_GREEN PA15
-#define LED_ORANGE PA12
-#define LED_RED PB3
-
-unsigned long iAdcMicros = 0;
-unsigned long iAdcLast = 0;
-unsigned long iAdcMicrosLoop = 0;
-unsigned long iAdcMicrosLoopLast = 0;
-
-#include <SimpleFOC.h>
-
-extern BLDCMotor motor;
-extern float target;
-extern LowPassFilter LPF_target;  //  the higher the longer new values need to take effect
-
-boolean bNoLoopFOC = false;
-int iUsLoopFOC = 300;
-
-uint32_t iCountTimer0,iCaptureTimer03;
-
-extern "C" {  
-  void ADC_CMP_IRQHandler(void)
-  {
-    if ( adc_interrupt_flag_get(ADC_INT_EOIC) != RESET)
-    {
-      adc_interrupt_flag_clear(ADC_INT_EOIC);
-
-//				iCountTimer0 = timer_counter_read(TIMER0);
-//				iCaptureTimer03 = timer_channel_capture_value_register_read(TIMER0,TIMER_CH_3);
-
-		  //digitalWrite(LED_ORANGE, HIGH );
-      unsigned long iNow = _micros();
-      iAdcMicros = iNow - iAdcLast;
-      iAdcLast = iNow;
-
-      if (motor.enabled)
-      {
-        if (bNoLoopFOC && (iNow - iAdcMicrosLoopLast > iUsLoopFOC) ) // 250 us = 4 kHz
-        {
-          bNoLoopFOC = false;
-          motor.loopFOC();
-          motor.move(LPF_target(target));
-          //motor.move(target);          
-          iAdcMicrosLoop = iNow - iAdcMicrosLoopLast;
-          iAdcMicrosLoopLast = iNow;
-          bNoLoopFOC = true;
-        }
-      }
-    }
-  }
-}
-//*/
 
 void _driverSyncLowSide(void* _driver_params, void* _cs_params){
   

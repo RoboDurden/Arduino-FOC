@@ -77,8 +77,6 @@ class HallSensor: public Sensor{
     // variable used to filter outliers - rad/s
     float velocity_max = 1000.0f;
 
-    volatile long pulse_diff;
-
   private:
     
     Direction decodeDirection(int oldState, int newState);
@@ -92,6 +90,7 @@ class HallSensor: public Sensor{
     // function pointer for on sector change call back
     void (*onSectorChange)(int sector) = nullptr;
 
+    volatile long pulse_diff;
     
 };
 
