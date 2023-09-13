@@ -14,7 +14,7 @@ public:
     /**
      * @param Tf - Low pass filter time constant
      */
-    LowPassFilter(float Tf);
+    LowPassFilter(float Tf, float fStart = 0.0f);
     ~LowPassFilter() = default;
 
     float operator() (float x);

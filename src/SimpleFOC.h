@@ -96,6 +96,7 @@ void loop() {
 #ifndef SIMPLEFOC_H
 #define SIMPLEFOC_H
 
+#include "IrqMotor.h"
 #include "BLDCMotor.h"
 #include "StepperMotor.h"
 #include "sensors/Encoder.h"
@@ -111,7 +112,6 @@ void loop() {
 #include "drivers/StepperDriver2PWM.h"
 #include "current_sense/InlineCurrentSense.h"
 #include "current_sense/LowsideCurrentSense.h"
-#include "current_sense/LowsideCurrentSenseTimer.h"
 #include "current_sense/GenericCurrentSense.h"
 #include "communication/Commander.h"
 #include "communication/StepDirListener.h"

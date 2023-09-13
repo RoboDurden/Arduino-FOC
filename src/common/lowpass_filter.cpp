@@ -1,11 +1,12 @@
 #include "lowpass_filter.h"
 
-LowPassFilter::LowPassFilter(float time_constant)
+LowPassFilter::LowPassFilter(float time_constant, float fStart)
     : Tf(time_constant)
-    , y_prev(0.0f)
+    , y_prev(fStart)
 {
     timestamp_prev = _micros();
 }
+
 
 
 float LowPassFilter::operator() (float x)

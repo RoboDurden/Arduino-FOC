@@ -51,20 +51,18 @@ class LowsideCurrentSense: public CurrentSense{
     float offset_ia; //!< zero current A voltage value (center of the adc reading)
     float offset_ib; //!< zero current B voltage value (center of the adc reading)
     float offset_ic; //!< zero current C voltage value (center of the adc reading)
+  private:
 
-  protected:
     // hardware variables
   	int pinA; //!< pin A analog pin for current measurement
   	int pinB; //!< pin B analog pin for current measurement
   	int pinC; //!< pin C analog pin for current measurement
 
-  private:
     // gain variables
     float shunt_resistor; //!< Shunt resistor value
     float amp_gain; //!< amp gain value
     float volts_to_amps_ratio; //!< Volts to amps ratio
 
-  protected:
     /**
      *  Function finding zero offsets of the ADC
      */
